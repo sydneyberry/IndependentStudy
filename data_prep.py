@@ -1,32 +1,28 @@
 import os
-import pandas as pd
 import csv as csv
-import json
-import re
-import nltk
-from nltk.tokenize import TweetTokenizer
+
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 import re, string
-
 from nltk.corpus import stopwords
 
 from nltk.tag import (pos_tag)
 
-from nltk.corpus import twitter_samples
 import jsonlines
 from datetime import datetime
 from nltk.tokenize import word_tokenize
 
 import io
 
-stop_words = stopwords.words('english')
+stoplist = set(stopwords.words('english'))
 files_location = 'C:\\Users\\Sydney\\Documents\\College\\IndependentStudy'
 neg_data_list = []
 pos_data_list = []
+unlabeled_data_list = []
 
 positive_cleaned_tokens = []
 negative_cleaned_tokens = []
+unlabeled_cleaned_tokens = []
 
 
 def extract_data(location):
@@ -79,6 +75,7 @@ def make_json_file(folder_location):
     neg_file = folder_location + "\\negative_data.json"
     unlabeled_file = folder_location + "\\unlabeled_data.json"
 
+    total = 0
     with open(pos_file, 'w+', newline='', encoding="utf8") as pos_data, \
             open(neg_file, 'w+', newline='', encoding="utf8") as neg_data, \
             open(unlabeled_file, 'w+', newline='', encoding="utf8") as unlabeled_data:
@@ -89,28 +86,40 @@ def make_json_file(folder_location):
             for row in reader:
                 # call to clean data here
                 if row['label'] == "-1":
-                    json.dump(row, neg_data)  # do I even need ???
                     initial_clean_tweet = clean_tweet(row['text'])
                     if initial_clean_tweet != "":
-                        neg_data_list.append(word_tokenize(initial_clean_tweet))
+                        #neg_data_list.append(word_tokenize(initial_clean_tweet))
+                        negative_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
+                        # json.dump(row, neg_data)  # do I even need ???
                 elif row['label'] == "1":
-                    json.dump(row, pos_data)
                     initial_clean_tweet = clean_tweet(row['text'])
                     if initial_clean_tweet != "":
-                        pos_data_list.append(word_tokenize(initial_clean_tweet))
-                # else
+                        #pos_data_list.append(word_tokenize(initial_clean_tweet))
+                        positive_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
+                        # json.dump(row, pos_data)
+                else:
+                    initial_clean_tweet = clean_tweet(row['text'])
+                    if initial_clean_tweet != "" and initial_clean_tweet != " ":
+                        #unlabeled_data_list.append(word_tokenize(initial_clean_tweet))
+                        unlabeled_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
+
+                        # json.dump(row, unlabeled_data)
 
     # normalize/lemmatize tokens
-    for tweet in neg_data_list:
-        negative_cleaned_tokens.append(lemm_data(tweet, stop_words))
+    #for tweet in neg_data_list:
+     #   negative_cleaned_tokens.append(lemm_data(tweet, stoplist))
+    #for tweet in pos_data_list:
+    #   positive_cleaned_tokens.append(lemm_data(tweet, stoplist))
+    #for tweet in unlabeled_data_list:
+     #   unlabeled_cleaned_tokens.append(lemm_data(tweet, stoplist))
 
-    for tweet in pos_data_list:
-        positive_cleaned_tokens.append(lemm_data(tweet, stop_words))
+    return negative_cleaned_tokens, positive_cleaned_tokens, unlabeled_cleaned_tokens
+
 
 def clean_tweet(data):
     location = 0
     while True:
-        location = data.find('@', location+1)
+        location = data.find('@', location + 1)
         location = int(location)
         if location == -1:
             break
@@ -122,7 +131,7 @@ def clean_tweet(data):
                 space_location = data.find(' ')
                 data = data[location: space_location]
 
-    #Remove URL's
+    # Remove URL's
     data = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+#]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', data)
     # Remove numbers
     data = re.sub(r'[0-9]', '', data)
@@ -137,6 +146,7 @@ def clean_tweet(data):
 
 
 def lemm_data(tweet_tokens, stop_words=()):
+    print("lemm data", tweet_tokens)
     cleaned_tokens = []
     for token, tag in pos_tag(tweet_tokens):
         if tag.startswith("NN"):
@@ -150,19 +160,25 @@ def lemm_data(tweet_tokens, stop_words=()):
             token = "is"
         elif token == "'ve":
             token = "have"
+        elif token == "covid-" or token == "corona" or token == "coronavirus":
+            token = "covid"
 
         lemmatizer = WordNetLemmatizer()
         token = lemmatizer.lemmatize(token, pos)
 
         if len(token) > 0 and token not in string.punctuation and token.lower() not in stop_words:
             cleaned_tokens.append(token.lower())
-    print(cleaned_tokens)
     return cleaned_tokens
 
 
+def get_all_words(positive):
+    for tokens in positive:
+        for token in tokens:
+            yield token
 
-
-
+def get_tweets_for_model(token_list):
+    for tweet_tokens in token_list:
+        yield dict([token, True] for token in tweet_tokens)
 
 
 # OLD: built for using a jsonl file converted to csv
