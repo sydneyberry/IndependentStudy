@@ -1,17 +1,13 @@
 import os
 import csv as csv
-
 from nltk.tag import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 import re, string
 from nltk.corpus import stopwords
-
 from nltk.tag import (pos_tag)
-
 import jsonlines
 from datetime import datetime
 from nltk.tokenize import word_tokenize
-
 import io
 
 stoplist = set(stopwords.words('english'))
@@ -22,6 +18,7 @@ unlabeled_data_list = []
 
 positive_cleaned_tokens = []
 negative_cleaned_tokens = []
+neutral_cleaned_tokens = []
 unlabeled_cleaned_tokens = []
 
 
@@ -67,6 +64,7 @@ def count_labeled_data(location):
     print("Positive: " + str(positive))
     print("Neutral: " + str(neutral))
     print("Negative: " + str(negative))
+    print("Total: " + str(negative + neutral + positive))
 
 
 def make_json_file(folder_location):
@@ -88,32 +86,35 @@ def make_json_file(folder_location):
                 if row['label'] == "-1":
                     initial_clean_tweet = clean_tweet(row['text'])
                     if initial_clean_tweet != "":
-                        #neg_data_list.append(word_tokenize(initial_clean_tweet))
+                        # neg_data_list.append(word_tokenize(initial_clean_tweet))
                         negative_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
                         # json.dump(row, neg_data)  # do I even need ???
                 elif row['label'] == "1":
                     initial_clean_tweet = clean_tweet(row['text'])
                     if initial_clean_tweet != "":
-                        #pos_data_list.append(word_tokenize(initial_clean_tweet))
+                        # pos_data_list.append(word_tokenize(initial_clean_tweet))
                         positive_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
                         # json.dump(row, pos_data)
+                elif row['label'] == "0":
+                    initial_clean_tweet = clean_tweet(row['text'])
+                    if initial_clean_tweet != "":
+                        neutral_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
                 else:
                     initial_clean_tweet = clean_tweet(row['text'])
                     if initial_clean_tweet != "" and initial_clean_tweet != " ":
-                        #unlabeled_data_list.append(word_tokenize(initial_clean_tweet))
+                        # unlabeled_data_list.append(word_tokenize(initial_clean_tweet))
                         unlabeled_cleaned_tokens.append(lemm_data(word_tokenize(initial_clean_tweet), stoplist))
-
                         # json.dump(row, unlabeled_data)
 
     # normalize/lemmatize tokens
-    #for tweet in neg_data_list:
-     #   negative_cleaned_tokens.append(lemm_data(tweet, stoplist))
-    #for tweet in pos_data_list:
+    # for tweet in neg_data_list:
+    #   negative_cleaned_tokens.append(lemm_data(tweet, stoplist))
+    # for tweet in pos_data_list:
     #   positive_cleaned_tokens.append(lemm_data(tweet, stoplist))
-    #for tweet in unlabeled_data_list:
-     #   unlabeled_cleaned_tokens.append(lemm_data(tweet, stoplist))
+    # for tweet in unlabeled_data_list:
+    #   unlabeled_cleaned_tokens.append(lemm_data(tweet, stoplist))
 
-    return negative_cleaned_tokens, positive_cleaned_tokens, unlabeled_cleaned_tokens
+    return negative_cleaned_tokens, positive_cleaned_tokens, neutral_cleaned_tokens, unlabeled_cleaned_tokens
 
 
 def clean_tweet(data):
@@ -146,7 +147,6 @@ def clean_tweet(data):
 
 
 def lemm_data(tweet_tokens, stop_words=()):
-    print("lemm data", tweet_tokens)
     cleaned_tokens = []
     for token, tag in pos_tag(tweet_tokens):
         if tag.startswith("NN"):
@@ -175,6 +175,7 @@ def get_all_words(positive):
     for tokens in positive:
         for token in tokens:
             yield token
+
 
 def get_tweets_for_model(token_list):
     for tweet_tokens in token_list:
